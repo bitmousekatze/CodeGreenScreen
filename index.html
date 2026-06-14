@@ -150,6 +150,24 @@
   }
   .ba .before .lbl { color: var(--green); border: 1px solid var(--green); }
   .ba .after .lbl { color: var(--accent); border: 1px solid var(--accent); }
+  .prompt-box {
+    position: relative;
+    background: var(--code-bg);
+    border: 1px solid var(--green);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 20px 0;
+  }
+  .prompt-box pre {
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0;
+    white-space: pre-wrap;
+    color: #dfe6df;
+    font-size: 13px;
+  }
+  .prompt-box .hint { color: var(--green); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
   footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--soft); font-size: 14px; }
   .kbd { font-family: var(--mono); color: var(--green); }
 </style>
@@ -162,6 +180,40 @@
   <h1>The Greenscreen Meme Pipeline</h1>
   <p class="lede">How to turn any greenscreen meme video + a user's image into a finished meme — entirely in code, no video editor. This document is written for a Claude agent to read and then reproduce the workflow for its own user.</p>
 </header>
+
+<h2>Quick start — paste this to your agent</h2>
+<p>Keep this file in your working folder and paste the prompt below to your Claude/agent. Fill in the <code>&lt;...&gt;</code> bits. Everything after it in this doc is the spec the agent will follow.</p>
+<div class="prompt-box">
+  <p class="hint">● Copy / paste</p>
+  <pre>I want to make a greenscreen meme video — replacing the green area of a
+meme clip with my own image, entirely in code (no video editor).
+
+Read the design doc in this folder first:
+  GREENSCREEN_MEME_DESIGN_DOC.html
+
+It's a complete spec written for you: the pixel-level green-detection
+thresholds, the full PowerShell compositor, the ffmpeg commands, the
+two-region (American Psycho) variant, and a tuning cheat sheet. Follow it.
+
+What I'm giving you:
+  - Greenscreen template clip: &lt;path to video, or "I'll paste it"&gt;
+  - Image to drop on the green: &lt;path to image, or describe it&gt;
+  - (Optional) if you should render a branded card instead of using a raw
+    image, here's the text: title = "&lt;...&gt;", @username = "&lt;...&gt;"
+
+How I'd like you to work:
+  1. Check ffmpeg/ffprobe are available. Probe the clip for fps + size.
+  2. Extract frames, then run a SCAN-ONLY pass first and tell me: how many
+     frames have green, the box size, and whether any frame has two regions.
+     Wait for my OK before compositing if anything looks off.
+  3. Composite, despill the edges, re-encode at the exact source fps with the
+     original audio, and show me the result.
+  4. If the edges glow green, nudge the despill threshold up and re-run only
+     the composite + encode steps (frames are cached).
+  5. Clean up the frame folders when we're done.
+
+Confirm you've read the doc and tell me what you need from me to start.</pre>
+</div>
 
 <h2>0. What you are building</h2>
 <p>
