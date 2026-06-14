@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greenscreen Meme Pipeline — Design Doc</title>
+<style>
+  :root {
+    --bg: #0d0d12;
+    --panel: #17171f;
+    --border: #2a2a35;
+    --ink: #f0f0f5;
+    --soft: #a3a3b2;
+    --accent: #a78bfa;
+    --green: #4ade80;
+    --like: #f45d69;
+    --code-bg: #101017;
+    --mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 64px 28px 120px; }
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 999px;
+    padding: 4px 14px;
+    margin-bottom: 20px;
+  }
+  h1 { font-size: 40px; line-height: 1.15; margin: 0 0 12px; }
+  h2 {
+    font-size: 26px;
+    margin: 56px 0 14px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  h3 { font-size: 19px; margin: 32px 0 8px; color: var(--accent); }
+  .lede { font-size: 19px; color: var(--soft); margin: 0; }
+  p { color: #d8d8e0; }
+  a { color: var(--accent); }
+  code {
+    font-family: var(--mono);
+    background: #1f1f29;
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-size: 0.88em;
+    color: #e6e6ef;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: #d4d4e0;
+  }
+  pre .cm { color: #6b7280; }
+  pre .kw { color: #c792ea; }
+  pre .st { color: #c3e88d; }
+  pre .fn { color: #82aaff; }
+  ul, ol { padding-left: 24px; }
+  li { margin: 6px 0; }
+  .callout {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 24px 0;
+  }
+  .callout.green { border-left-color: var(--green); }
+  .callout.warn { border-left-color: #fbbf24; }
+  .callout strong { color: var(--ink); }
+  .pipe {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 28px 0;
+  }
+  .step {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .step .n {
+    font-family: var(--mono);
+    color: var(--green);
+    font-size: 22px;
+    font-weight: 700;
+    min-width: 34px;
+  }
+  .step .t { color: var(--ink); font-weight: 600; }
+  .step .d { color: var(--soft); font-size: 14.5px; display: block; font-weight: 400; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14.5px;
+  }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--accent); font-weight: 600; }
+  td code { white-space: nowrap; }
+  .muted { color: var(--soft); font-size: 14px; }
+  figure { margin: 22px 0; }
+  figure img {
+    width: 100%;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #000;
+  }
+  figcaption { color: var(--soft); font-size: 13.5px; margin-top: 8px; text-align: center; }
+  .ba {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin: 24px 0;
+  }
+  .ba .lbl {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 999px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .ba .before .lbl { color: var(--green); border: 1px solid var(--green); }
+  .ba .after .lbl { color: var(--accent); border: 1px solid var(--accent); }
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--soft); font-size: 14px; }
+  .kbd { font-family: var(--mono); color: var(--green); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="tag">● Design Doc — for Claude</span>
+  <h1>The Greenscreen Meme Pipeline</h1>
+  <p class="lede">How to turn any greenscreen meme video + a user's image into a finished meme — entirely in code, no video editor. This document is written for a Claude agent to read and then reproduce the workflow for its own user.</p>
+</header>
+
+<h2>0. What you are building</h2>
+<p>
+  You take an existing <strong>greenscreen meme clip</strong> — a video where someone holds up / looks at / reacts to a green rectangle (a business card, a phone, a sign, a TV) — and you <strong>automatically replace the green area with the user's own content</strong> on every frame. The result is a meme where the subject appears to be holding the user's image, post, ad, leaderboard, etc.
+</p>
+<p>
+  The key idea: <strong>this is chroma keying done in plain code.</strong> You never open editing software. You detect green pixels, swap them for the user's image, despill the edges, and re-encode. Once the pipeline exists, a new meme is just "new template + new image + run."
+</p>
+
+<div class="callout green">
+  <strong>What you need from the user:</strong>
+  <ul style="margin:8px 0 0">
+    <li>A <strong>greenscreen video</strong> (the meme template). e.g. American Psycho business cards, Mr. Incredible, Trump holding a sign, Alexa screen, etc.</li>
+    <li>One or more <strong>images</strong> to drop onto the green (a screenshot, a generated card, a photo).</li>
+  </ul>
+</div>
+
+<h2>1. The pipeline at a glance</h2>
+<div class="pipe">
+  <div class="step"><span class="n">1</span><span><span class="t">Generate / collect the content image(s)</span><span class="d">Either use the user's raw image, or render a clean branded "card" from data (title + username + footer) so it reads well at small sizes.</span></span></div>
+  <div class="step"><span class="n">2</span><span><span class="t">Explode the video into PNG frames</span><span class="d">FFmpeg → a folder of numbered frames. Remember the source FPS.</span></span></div>
+  <div class="step"><span class="n">3</span><span><span class="t">Scan each frame for green</span><span class="d">Pixel-by-pixel chroma detection. Find the bounding box of the green region per frame.</span></span></div>
+  <div class="step"><span class="n">4</span><span><span class="t">(Optional) Group frames into segments</span><span class="d">Consecutive green frames = one "card on screen" segment. Lets you assign different images to different moments, and detect 2-card scenes.</span></span></div>
+  <div class="step"><span class="n">5</span><span><span class="t">Composite</span><span class="d">For each green pixel, copy the matching pixel from the (scaled, centered) content image. Despill the faint green fringe at the edges.</span></span></div>
+  <div class="step"><span class="n">6</span><span><span class="t">Re-encode frames → MP4</span><span class="d">FFmpeg stitches the composited frames back into a video, carrying the original audio.</span></span></div>
+</div>
+
+<h2>1.5 See it working</h2>
+<p>Real frames from the pipeline. The green is detected and replaced per-frame — nothing here was keyed by hand.</p>
+
+<div class="ba">
+  <div class="before">
+    <span class="lbl">● Before — raw template</span>
+    <figure>
+      <img src="trump_frames.png" alt="Trump press-conference clip with two green screens on the table">
+      <figcaption>Source greenscreen frames. The script finds the green boxes automatically, even across camera cuts.</figcaption>
+    </figure>
+  </div>
+  <div class="after">
+    <span class="lbl">▲ After — composited</span>
+    <figure>
+      <img src="trump_check.png" alt="Same frames with Prompted content composited onto the green">
+      <figcaption>Same frames after compositing — green swapped for content, edges despilled. No green halo.</figcaption>
+    </figure>
+  </div>
+</div>
+
+<h3>Data-driven cards (two-region scene)</h3>
+<figure>
+  <img src="bateman_check.png" alt="American Psycho business cards replaced with rendered Prompted entry cards">
+  <figcaption>The American Psycho "subtle off-white coloring" shot. Each card is <strong>rendered from JSON</strong> (title + @username + footer) and stamped in — the two-region detector places a different creator in each card.</figcaption>
+</figure>
+
+<h3>Compositing onto an in-scene screen</h3>
+<figure>
+  <img src="final_2.png" alt="A real Prompted post composited onto a computer monitor in the Mr Incredible clip">
+  <figcaption>A real post (image + @handle + like count) dropped onto a screen inside the shot. The box bends with the monitor's perspective because detection is per-frame, not a fixed rectangle.</figcaption>
+</figure>
+
+<h2>2. Stack & prerequisites</h2>
+<table>
+  <tr><th>Tool</th><th>Role</th><th>Notes</th></tr>
+  <tr><td><code>ffmpeg</code></td><td>Frame extract + re-encode</td><td>The only external dependency. <code>ffmpeg -version</code> to confirm.</td></tr>
+  <tr><td>PowerShell + .NET <code>System.Drawing</code> (GDI+)</td><td>Card rendering, green detection, compositing, despill</td><td>Ships with Windows. No installs, no paid software.</td></tr>
+  <tr><td>JSON</td><td>Content data (titles, usernames, assignments)</td><td>So swapping content is a data edit, not a code edit.</td></tr>
+</table>
+<p class="muted">On macOS/Linux the same logic ports to Python + Pillow/NumPy — the algorithm is identical, only the drawing API changes. The reference implementation below is PowerShell because that's what the original was built on.</p>
+
+<h2>3. Step-by-step</h2>
+
+<h3>Step 1 — Render the content card (optional but recommended)</h3>
+<p>
+  A raw screenshot often looks muddy when shrunk onto a tiny business card. Rendering a clean, high-contrast card from data reads far better. Keep a <code>cards.json</code> of what to draw, then draw each with GDI+. This is also how you make the "Prompted entry" cards.
+</p>
+<pre><span class="cm"># cards.json — one object per card</span>
+[
+  {<span class="st">"file"</span>:<span class="st">"card_01.png"</span>, <span class="st">"username"</span>:<span class="st">"shiroku_official"</span>, <span class="st">"title"</span>:<span class="st">"Shiroku — anomaly detection for SMBs"</span>},
+  {<span class="st">"file"</span>:<span class="st">"card_02.png"</span>, <span class="st">"username"</span>:<span class="st">"minddefinitive"</span>, <span class="st">"title"</span>:<span class="st">"Fashion w/ Motion & Vortex Ignition"</span>}
+]</pre>
+<pre><span class="cm"># render_cards.ps1 — bone card, serif title, @username, footer</span>
+<span class="kw">Add-Type</span> -AssemblyName System.Drawing
+<span class="kw">$m</span>     = <span class="st">"C:\path\to\project"</span>
+<span class="kw">$cards</span> = Get-Content <span class="st">"$m\cards.json"</span> -Raw | ConvertFrom-Json
+<span class="kw">$W</span> = 1400; <span class="kw">$W</span>; <span class="kw">$H</span> = 800
+<span class="kw">$bone</span> = [System.Drawing.Color]::FromArgb(245,241,228)
+<span class="kw">$ink</span>  = [System.Drawing.Color]::FromArgb(33,33,28)
+<span class="kw">$soft</span> = [System.Drawing.Color]::FromArgb(95,92,80)
+<span class="kw">function</span> <span class="fn">Spaced</span>([string]$s){ ($s.ToUpper().ToCharArray() -join <span class="st">' '</span>) }   <span class="cm"># L E T T E R   S P A C I N G</span>
+
+<span class="kw">$titleFont</span> = New-Object System.Drawing.Font(<span class="st">"Georgia"</span>, 52, [System.Drawing.FontStyle]::Bold)
+<span class="kw">$userFont</span>  = New-Object System.Drawing.Font(<span class="st">"Georgia"</span>, 34, [System.Drawing.FontStyle]::Regular)
+<span class="kw">$center</span> = New-Object System.Drawing.StringFormat
+<span class="kw">$center</span>.Alignment = <span class="st">'Center'</span>; <span class="kw">$center</span>.LineAlignment = <span class="st">'Center'</span>
+
+<span class="kw">foreach</span>($c <span class="kw">in</span> $cards){
+  <span class="kw">$bmp</span> = New-Object System.Drawing.Bitmap($W, $H)
+  <span class="kw">$g</span>   = [System.Drawing.Graphics]::FromImage($bmp)
+  <span class="kw">$g</span>.SmoothingMode = <span class="st">'AntiAlias'</span>; <span class="kw">$g</span>.TextRenderingHint = <span class="st">'AntiAliasGridFit'</span>
+  <span class="kw">$g</span>.Clear($bone)
+  <span class="kw">$inkB</span> = New-Object System.Drawing.SolidBrush($ink)
+  <span class="kw">$g</span>.DrawString($c.title, $titleFont, $inkB,
+     (New-Object System.Drawing.RectangleF(80,180,($W-160),380)), $center)
+  <span class="kw">$g</span>.DrawString((Spaced <span class="st">"@$($c.username)"</span>), $userFont, $inkB,
+     (New-Object System.Drawing.RectangleF(0,575,$W,60)), $center)
+  <span class="kw">$g</span>.Dispose()
+  <span class="kw">$bmp</span>.Save(<span class="st">"$m\cards\$($c.file)"</span>, [System.Drawing.Imaging.ImageFormat]::Png)
+  <span class="kw">$bmp</span>.Dispose()
+}</pre>
+<p class="muted">Skip this entirely if the user just wants their own raw image on the green — point the compositor at that image instead.</p>
+
+<h3>Step 2 — Explode the video into frames</h3>
+<pre><span class="cm"># Make a frames folder and dump every frame as a numbered PNG.</span>
+<span class="cm"># Record the FPS — you need it to rebuild and to convert frame#→time.</span>
+ffmpeg -i meme.mp4 -vsync 0 frames_in\frame_%05d.png
+
+<span class="cm"># Get exact FPS / dimensions:</span>
+ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate,width,height -of csv=p=0 meme.mp4</pre>
+<div class="callout warn">
+  <strong>FPS matters.</strong> Common meme clips are <code>23.976</code> (24000/1001) or <code>30</code> fps. Use the <em>exact</em> rate on re-encode or audio drifts. Keep frames as PNG (lossless) — JPEG would chew up the clean chroma edges.
+</div>
+
+<h3>Step 3 — Detect the green (the core trick)</h3>
+<p>
+  A pixel is "true green" when its green channel clearly dominates red and blue. The thresholds below are the battle-tested ones. Scan every pixel; the min/max X and Y of green pixels give you the <strong>bounding box</strong> where the content goes on that frame.
+</p>
+<pre><span class="cm">// "core" green — used to find the box and to fill</span>
+<span class="kw">bool</span> <span class="fn">IsGreen</span>(<span class="kw">byte</span> r, <span class="kw">byte</span> g, <span class="kw">byte</span> b) {
+    <span class="kw">return</span> g &gt; 100 && g &gt; r + 60 && g &gt; b + 60;
+}</pre>
+<p>
+  Two looser tiers are used during compositing (see Step 5): <code>g&gt;80 && g&gt;r+30 && g&gt;b+30</code> = "still green, replace it," and <code>g&gt;r+12 && g&gt;b+12</code> = "faint green fringe, despill it."
+</p>
+
+<h3>Step 4 — (Optional) Segment & assign</h3>
+<p>Only needed when the green appears in bursts (card shown, hidden, shown again) or when a scene shows <strong>two</strong> green regions at once. Logic:</p>
+<ul>
+  <li><strong>Segment:</strong> walk frames in order; a run of green frames = one segment. Merge gaps ≤ ~12 frames (brief occlusions), drop runs &lt; ~6 frames (noise).</li>
+  <li><strong>Assign:</strong> give each segment a content image. Tip: never repeat the same creator/image back-to-back.</li>
+  <li><strong>Two regions:</strong> detect green <em>columns</em> separated by a gap (≥ ~40px of non-green). Two runs ≥ ~60px wide = two cards (the American Psycho "subtle off-white coloring" shot). Fill the left box with the previous card, the right with the current one.</li>
+</ul>
+<pre><span class="cm"># segment build (PowerShell): merge gaps <= 12, drop runs < 6</span>
+<span class="kw">$segments</span> = @(); <span class="kw">$segStart</span> = -1; <span class="kw">$lastGreen</span> = -1
+<span class="kw">for</span>($i=0; $i -lt $frames.Count; $i++){
+  <span class="kw">if</span>($frames[$i].green){
+    <span class="kw">if</span>($segStart -lt 0){ $segStart = $i }
+    <span class="kw">elseif</span>($i - $lastGreen -gt 12){
+      $segments += [pscustomobject]@{ start=$segStart; end=$lastGreen }; $segStart = $i }
+    <span class="kw">$lastGreen</span> = $i
+  }
+}
+<span class="kw">if</span>($segStart -ge 0){ $segments += [pscustomobject]@{ start=$segStart; end=$lastGreen } }
+<span class="kw">$segments</span> = @($segments | Where-Object { ($_.end - $_.start) -ge 6 })</pre>
+
+<h3>Step 5 — Composite (green → content, then despill)</h3>
+<p>For each frame with a green box, scale the content image to <strong>cover</strong> the box (centered), then walk the box: green core pixels become content pixels; faint fringe pixels get their green channel pulled down to <code>max(r,b)</code> so no green halo survives.</p>
+<pre><span class="cm">// inside the bounding box [minX..maxX] x [minY..maxY]:</span>
+<span class="kw">for</span> (<span class="kw">int</span> y = minY; y &lt;= maxY; y++)
+  <span class="kw">for</span> (<span class="kw">int</span> x = minX; x &lt;= maxX; x++) {
+    <span class="kw">int</span> i = y*stride + x*4;
+    <span class="kw">byte</span> b = px[i], g = px[i+1], r = px[i+2];
+    <span class="kw">if</span> (g &gt; 80 && g &gt; r+30 && g &gt; b+30) {        <span class="cm">// green core → content</span>
+        <span class="kw">int</span> ai = (y-minY)*adStride + (x-minX)*4;
+        px[i]=apx[ai]; px[i+1]=apx[ai+1]; px[i+2]=apx[ai+2];
+    } <span class="kw">else if</span> (g &gt; r+12 && g &gt; b+12) {            <span class="cm">// green fringe → despill</span>
+        px[i+1] = Math.Max(r, b);
+    }
+  }</pre>
+<div class="callout">
+  <strong>Scale to COVER, not fit.</strong> Use <code>s = max(boxW/imgW, boxH/imgH)</code> and center. This guarantees the content fills the whole green area with no background bleeding through, even if aspect ratios differ. Pad with a color that matches the content background (bone for cards, black for ad/video screens).
+</div>
+<p>The complete, working compositor (single-region) — adapt paths and the content image:</p>
+<pre><span class="kw">Add-Type</span> -AssemblyName System.Drawing
+<span class="kw">$src</span> = @'
+using System; using System.Drawing; using System.Drawing.Imaging;
+using System.IO; using System.Runtime.InteropServices;
+public static class CardComposite {
+  public static int Process(string inDir, string outDir, string contentPath) {
+    var files = Directory.GetFiles(inDir, "*.png"); Array.Sort(files);
+    int done = 0;
+    using (var ad = new Bitmap(contentPath))
+    foreach (var f in files) {
+      using (var raw = new Bitmap(f))
+      using (var bmp = new Bitmap(raw.Width, raw.Height, PixelFormat.Format32bppArgb)) {
+        using (var gc = Graphics.FromImage(bmp)) gc.DrawImage(raw, 0, 0, raw.Width, raw.Height);
+        var rect = new Rectangle(0,0,bmp.Width,bmp.Height);
+        var bd = bmp.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+        int stride = bd.Stride; byte[] px = new byte[stride*bmp.Height];
+        Marshal.Copy(bd.Scan0, px, 0, px.Length);
+        int minX=int.MaxValue,minY=int.MaxValue,maxX=-1,maxY=-1;
+        for (int y=0; y&lt;bmp.Height; y++){ int off=y*stride;
+          for (int x=0; x&lt;bmp.Width; x++){ int i=off+x*4;
+            byte b=px[i],g=px[i+1],r=px[i+2];
+            if (g&gt;100 && g&gt;r+60 && g&gt;b+60){
+              if(x&lt;minX)minX=x; if(x&gt;maxX)maxX=x; if(y&lt;minY)minY=y; if(y&gt;maxY)maxY=y; } } }
+        if (maxX&gt;=0 && maxX-minX&gt;20 && maxY-minY&gt;20) {
+          int bw=maxX-minX+1, bh=maxY-minY+1;
+          using (var adScaled = new Bitmap(bw,bh)) {
+            using (var g2 = Graphics.FromImage(adScaled)) {
+              g2.Clear(Color.Black);                       // pad color = content bg
+              g2.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+              double s = Math.Max((double)bw/ad.Width, (double)bh/ad.Height);
+              int aw=(int)(ad.Width*s), ah=(int)(ad.Height*s);
+              g2.DrawImage(ad, (bw-aw)/2, (bh-ah)/2, aw, ah);
+            }
+            var abd = adScaled.LockBits(new Rectangle(0,0,bw,bh), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            byte[] apx = new byte[abd.Stride*bh]; Marshal.Copy(abd.Scan0, apx, 0, apx.Length);
+            for (int y=minY; y&lt;=maxY; y++){ int off=y*stride;
+              for (int x=minX; x&lt;=maxX; x++){ int i=off+x*4;
+                byte b=px[i],g=px[i+1],r=px[i+2];
+                if (g&gt;80 && g&gt;r+30 && g&gt;b+30){
+                  int ai=(y-minY)*abd.Stride+(x-minX)*4;
+                  px[i]=apx[ai]; px[i+1]=apx[ai+1]; px[i+2]=apx[ai+2];
+                } else if (g&gt;r+12 && g&gt;b+12){ px[i+1]=Math.Max(r,b); } } }
+            adScaled.UnlockBits(abd);
+          }
+        }
+        Marshal.Copy(px, 0, bd.Scan0, px.Length); bmp.UnlockBits(bd);
+        bmp.Save(Path.Combine(outDir, Path.GetFileName(f)), ImageFormat.Png); done++;
+      }
+    }
+    return done;
+  }
+}
+'@
+<span class="cm"># force-load GDI+, then reference every loaded assembly (required for Add-Type here)</span>
+<span class="kw">$probe</span> = New-Object System.Drawing.Bitmap(1,1); <span class="kw">$probe</span>.Dispose()
+<span class="kw">$refs</span> = [AppDomain]::CurrentDomain.GetAssemblies() |
+  Where-Object { $_.Location } | ForEach-Object Location | Select-Object -Unique
+<span class="kw">Add-Type</span> -TypeDefinition $src -ReferencedAssemblies $refs
+<span class="kw">$m</span> = <span class="st">"C:\path\to\project"</span>
+<span class="kw">$n</span> = [CardComposite].GetMethod(<span class="st">'Process'</span>).Invoke($null, @(<span class="st">"$m\frames_in"</span>, <span class="st">"$m\frames_out"</span>, <span class="st">"$m\content.png"</span>))
+<span class="kw">Write-Output</span> <span class="st">"Composited $n frames"</span></pre>
+
+<h3>Step 6 — Re-encode the frames into a video</h3>
+<pre><span class="cm"># Use the EXACT source fps. Carry original audio from the source clip.</span>
+ffmpeg -framerate 24000/1001 -i frames_out\frame_%05d.png ^
+       -i meme.mp4 -map 0:v -map 1:a? -c:v libx264 -pix_fmt yuv420p ^
+       -crf 18 -shortest final_meme.mp4</pre>
+<p class="muted"><code>-pix_fmt yuv420p</code> keeps it playable everywhere (Discord/Twitter/iOS). <code>-crf 18</code> is visually lossless; raise toward 23 for smaller files. <code>-map 1:a?</code> grabs the source audio if present and silently skips if not.</p>
+
+<h2>4. Tunable parameters (cheat sheet)</h2>
+<table>
+  <tr><th>Knob</th><th>Default</th><th>When to change</th></tr>
+  <tr><td>Core green test</td><td><code>g&gt;100, +60/+60</code></td><td>Loosen if the screen is dim/teal-ish green; tighten if green-ish content gets eaten.</td></tr>
+  <tr><td>Fill green test</td><td><code>g&gt;80, +30/+30</code></td><td>Loosen to fill more edge area; tighten to leave a thin original border.</td></tr>
+  <tr><td>Despill test</td><td><code>+12/+12</code></td><td>Raise if a green halo remains; lower if non-green edges get desaturated.</td></tr>
+  <tr><td>Min box size</td><td><code>&gt;20px</code></td><td>Raise to ignore tiny green speckles / reflections elsewhere in frame.</td></tr>
+  <tr><td>Segment merge gap</td><td><code>≤12 frames</code></td><td>Raise if a hand briefly crosses the card; lower for rapid cuts.</td></tr>
+  <tr><td>Min segment length</td><td><code>≥6 frames</code></td><td>Raise to drop flickers of stray green.</td></tr>
+  <tr><td>Two-region col gap</td><td><code>≥40px</code></td><td>The horizontal gap that splits "two cards" from "one card."</td></tr>
+  <tr><td>Pad color</td><td>content bg</td><td>Bone for paper cards, black for screens/ads — match the content so letterboxing is invisible.</td></tr>
+</table>
+
+<h2>5. Recommended workflow when a user asks for one</h2>
+<ol>
+  <li><strong>Ask for two things:</strong> the greenscreen template clip and the image(s) to insert. If they want a styled "post card," collect the title + handle and render it (Step 1).</li>
+  <li><strong>Probe the clip</strong> (<code>ffprobe</code>) for fps + dimensions. Extract frames.</li>
+  <li><strong>Run a scan-only pass first</strong> and report: how many frames have green, the box sizes, and whether any frame has two regions. This catches a bad template before you waste a full composite.</li>
+  <li><strong>Composite, re-encode, show the result.</strong> If the edges glow green, nudge the despill threshold up and re-run only Step 5–6 (frames are cached).</li>
+  <li><strong>Clean up</strong> the <code>frames_in</code> / <code>frames_out</code> folders — they're large.</li>
+</ol>
+
+<div class="callout green">
+  <strong>Why this beats a video editor:</strong> it's reproducible (same script, new inputs), free (no subscription), scriptable in bulk (10 memes in a loop), and the content can be <em>data-driven</em> — generate 50 branded cards from a JSON file and stamp each into its own clip automatically.
+</div>
+
+<h2>6. Gotchas</h2>
+<ul>
+  <li><strong>Green-on-green:</strong> if the user's image contains bright green, it won't be harmed (you only test the <em>video</em> pixels), but green text near the card edge in the <em>video</em> can get despilled. Tighten thresholds.</li>
+  <li><strong>Motion blur / compression:</strong> fast-moving cards have soft green edges — that's what the looser fill + despill tiers are for. Don't make the core test too strict.</li>
+  <li><strong>Add-Type assembly errors:</strong> the <code>$probe</code> + reference-every-loaded-assembly dance at the bottom of the script is required to load GDI+ correctly under <code>Add-Type</code>. Keep it.</li>
+  <li><strong>Audio drift:</strong> always re-encode at the source fps fraction (<code>24000/1001</code>), not a rounded <code>23.976</code>.</li>
+  <li><strong>PNG only between steps.</strong> JPEG frames reintroduce green-edge artifacts.</li>
+</ul>
+
+<footer>
+  Greenscreen Meme Pipeline — internal design doc. Reference implementation: PowerShell + .NET <code>System.Drawing</code> + FFmpeg. Built for <span class="kbd">Prompted</span>. Hand this to a Claude, give it a clip and an image, and it can make the same memes.
+</footer>
+
+</div>
+</body>
+</html>
